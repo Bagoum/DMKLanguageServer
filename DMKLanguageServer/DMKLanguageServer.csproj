@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net6.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Reference Include="Danmokou.Danmaku">
+            <HintPath>..\..\unity\Danmokou\Builds\_debug\testbadlaptop_1\Danmokou_Data\Managed\Danmokou.Danmaku.dll</HintPath>
+        </Reference>
+        <Reference Include="Danmokou.Core">
+            <HintPath>..\..\unity\Danmokou\Builds\_debug\testbadlaptop_1\Danmokou_Data\Managed\Danmokou.Core.dll</HintPath>
+        </Reference>
+        <Reference Include="Danmokou.MiniProjects">
+            <HintPath>..\..\unity\Danmokou\Builds\_debug\testbadlaptop_1\Danmokou_Data\Managed\Danmokou.MiniProjects.dll</HintPath>
+        </Reference>
+        <Reference Include="Danmokou.SiMP">
+            <HintPath>..\..\unity\Danmokou\Builds\_debug\testbadlaptop_1\Danmokou_Data\Managed\Danmokou.SiMP.dll</HintPath>
+        </Reference>
+        <Reference Include="BagoumLib">
+            <HintPath>..\..\unity\Danmokou\Builds\_debug\testbadlaptop_1\Danmokou_Data\Managed\BagoumLib.dll</HintPath>
+        </Reference>
+        <Reference Include="LanguageServer.VsCode">
+          <HintPath>..\..\LanguageServer.NET\LanguageServer.VsCode\bin\Debug\net6.0\LanguageServer.VsCode.dll</HintPath>
+        </Reference>
+        <Reference Include="LanguageServer.Contracts">
+            <HintPath>..\..\LanguageServer.NET\LanguageServer.VsCode\bin\Debug\net6.0\LanguageServer.Contracts.dll</HintPath>
+        </Reference>
+        <Reference Include="Mizuhashi">
+            <HintPath>..\..\unity\Danmokou\Builds\_debug\testbadlaptop_1\Danmokou_Data\Managed\Mizuhashi.dll</HintPath>
+        </Reference>
+    </ItemGroup>
+    
+    <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+        <PackageReference Include="CXuesong.JsonRpc.DynamicProxy" Version="0.5.3" />
+      <PackageReference Include="CXuesong.JsonRpc.Streams" Version="0.5.4" />
+      <PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0" />
+      <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="6.0.0" />
+      <PackageReference Include="NReco.Logging.File" Version="1.1.5" />
+      <PackageReference Include="System.Reactive" Version="5.0.0" />
+    </ItemGroup>
+
+</Project>
