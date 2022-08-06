@@ -2,12 +2,14 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text;
+using JetBrains.Annotations;
 using JsonRpc.Server;
 using LanguageServer.VsCode.Contracts;
 using LanguageServer.VsCode.Contracts.Client;
 using LanguageServer.VsCode.Server;
 
 namespace DMKLanguageServer.Services;
+
 public class DMKLanguageServiceBase : JsonRpcService {
     protected LanguageServerSession Session => RequestContext.Features.Get<LanguageServerSession>();
 

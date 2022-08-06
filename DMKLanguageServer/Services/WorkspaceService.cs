@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using JetBrains.Annotations;
 using JsonRpc.Contracts;
 using LanguageServer.VsCode.Contracts;
 using Newtonsoft.Json.Linq;
 
 namespace DMKLanguageServer.Services {
-[JsonRpcScope(MethodPrefix = "workspace/")]
+[JsonRpcScope(MethodPrefix = "workspace/")] [PublicAPI]
 public class WorkspaceService : DMKLanguageServiceBase {
     [JsonRpcMethod(IsNotification = true)]
     public async Task DidChangeConfiguration(SettingsRoot settings) {

@@ -5,7 +5,7 @@ using System.Text;
 namespace DMKLanguageServer;
 
 public class SettingsRoot {
-    public LanguageServerSettings DMKLanguageServer { get; set; }
+    public LanguageServerSettings DMKLanguageServer { get; set; } = new();
 }
 
 public class LanguageServerSettings {

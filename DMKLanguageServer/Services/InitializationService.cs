@@ -13,7 +13,16 @@ public class InitializationService : DMKLanguageServiceBase {
     [JsonRpcMethod(AllowExtensionData = true)]
     public InitializeResult Initialize(int processId, Uri rootUri, ClientCapabilities capabilities,
         JToken? initializationOptions = null, string? trace = null) {
-        //Register new capabilities here
+        //When adding a new capability, add its provider information here
+        // This will tell the client that it can safely make requests
+        //You do not need to handle the client capability information
+        // unless you need it to set settings
+        //You also do not need to manually register any new Service classes,
+        // as that is done automatically in Program.cs by
+        //  `builder.Register(typeof(Program).GetTypeInfo().Assembly);`
+        //However, for new features, you may need to update the client package
+        // (eg. vscode-languageclient for VSCode/Node) for the client
+        // to send the requests
         return new InitializeResult(new ServerCapabilities {
             HoverProvider = new HoverOptions(),
             SignatureHelpProvider = new SignatureHelpOptions("()"),
@@ -23,7 +32,8 @@ public class InitializationService : DMKLanguageServiceBase {
                 WillSave = true,
                 Change = TextDocumentSyncKind.Incremental
             },
-            DocumentSymbolProvider = new DocumentSymbolOptions()
+            DocumentSymbolProvider = new DocumentSymbolOptions(),
+            SemanticTokensProvider = Diagnostics.SemanticTokens
         });
     }
 

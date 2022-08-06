@@ -5,15 +5,33 @@ using Danmokou.Core;
 using Danmokou.Reflection;
 using Danmokou.SM;
 using Danmokou.SM.Parsing;
+using LanguageServer.Contracts;
 using LanguageServer.VsCode.Contracts;
 using LanguageServer.VsCode.Server;
 using Mizuhashi;
 using Diagnostic = LanguageServer.VsCode.Contracts.Diagnostic;
+using Position = LanguageServer.VsCode.Contracts.Position;
 using Range = LanguageServer.VsCode.Contracts.Range;
 
 namespace DMKLanguageServer;
 
+public readonly record struct StagedSemanticToken(Range Position, string TokenType, string[]? TokenMods) {
+    public int Line => Position.Start.Line;
+    public int StartChar => Position.Start.Character;
+    public int Length => (Position.End.Line == Position.Start.Line) ?
+        Position.End.Character - Position.Start.Character :
+        80;
+    public uint EncodedTokenType => Diagnostics.SemanticTokens.Legend.EncodeType(TokenType);
+    public uint EncodedTokenMods => TokenMods == null ?
+        0u :
+        Diagnostics.SemanticTokens.Legend.EncodeMods(TokenMods);
+}
 public static class Diagnostics {
+    public static readonly SemanticTokensOptions SemanticTokens = new() {
+        Legend = new(SemanticTokenTypes.Values,
+            SemanticTokenModifiers.Values),
+        Full = new SemanticTokensOptions.OptionsFull()
+    };
 
     private static readonly string[] Keywords =
         { ".NET Framework", ".NET Core", ".NET Standard", ".NET Compact", ".NET" };
@@ -66,5 +84,32 @@ public static class Diagnostics {
             }, d.Position.ToRange(), "Typechecking", d.Message
         ));
         return (ast, warnings);
+    }
+
+    //Most functions here should operate over AST so they can be
+    // called with LastSuccessfulParse from callers
+    
+    public static uint[] GetSemanticTokens(IAST ast) {
+        var prevLoc = new Range(0, 0, 0, 0);
+        var output = new List<uint>();
+        //It's possible for tokens to arrive out-of-order due to 
+        // exceptional structures like phase arguments being out-of-order
+        foreach (var token in ast.ToSemanticTokens().OrderBy(t => t.Position.Start.Index)) {
+            if (token.Position.Empty) continue;
+            //may need to continue if token.Start.Index < prev.End.Index
+            var nloc = token.Position.ToRange();
+            if (nloc.Start.Line == prevLoc.Start.Line) {
+                output.Add(0);
+                output.Add((uint)(nloc.Start.Character - prevLoc.Start.Character));
+            } else {
+                output.Add((uint)(nloc.Start.Line - prevLoc.Start.Line));
+                output.Add((uint)nloc.Start.Character);
+            }
+            output.Add((uint)(nloc.End.Character - nloc.Start.Character));
+            output.Add(SemanticTokens.Legend.EncodeType(token.TokenType));
+            output.Add(SemanticTokens.Legend.EncodeMods(token.TokenMods));
+            prevLoc = nloc;
+        }
+        return output.ToArray();
     }
 }

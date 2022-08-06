@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Danmokou.Reflection;
+using JetBrains.Annotations;
 using JsonRpc.Contracts;
 using JsonRpc.Server;
 using LanguageServer.VsCode;
@@ -13,7 +14,7 @@ using Diagnostic = LanguageServer.VsCode.Contracts.Diagnostic;
 using Range = LanguageServer.VsCode.Contracts.Range;
 
 namespace DMKLanguageServer.Services;
-[JsonRpcScope(MethodPrefix = "textDocument/")]
+[JsonRpcScope(MethodPrefix = "textDocument/")] [PublicAPI]
 public class TextDocumentService : DMKLanguageServiceBase {
     [JsonRpcMethod]
     public async Task<Hover> Hover(TextDocumentIdentifier textDocument, Position position, CancellationToken ct) {
