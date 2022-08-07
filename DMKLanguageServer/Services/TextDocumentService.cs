@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using BagoumLib;
 using Danmokou.Reflection;
 using JetBrains.Annotations;
 using JsonRpc.Contracts;
@@ -18,10 +19,43 @@ namespace DMKLanguageServer.Services;
 public class TextDocumentService : DMKLanguageServiceBase {
     [JsonRpcMethod]
     public async Task<Hover> Hover(TextDocumentIdentifier textDocument, Position position, CancellationToken ct) {
-        if (Session.Documents.TryGetValue(textDocument.Uri, out var doc) && doc.LastSuccessfulParse is {} ast) {
+        if (Session.Documents.TryGetValue(textDocument.Uri, out var doc) && doc.LastSuccessfulParse is {} rootast) {
             var dmkp = position.ToDMKPosition(doc.Document.Content);
-            if (ast.NarrowestASTForPosition(new(dmkp, dmkp)) is {} asts)
-                return new Hover() { Contents = string.Join("\nin ", asts.Select(a => a.Explain())) };
+            if (rootast.NarrowestASTForPosition(new(dmkp, dmkp)) is { } _asts) {
+                var asts = _asts.ToArray();
+                var sb = new StringBuilder();
+                bool firstFunc = true;
+                bool nxtRequiresDoubleSpace = false;
+                var used = 0;
+                foreach (var (ast, child) in asts) {
+                    if (ast is AST.BaseSequence || used >= 5) continue;
+                    var bmi = ast as AST.BaseMethodInvoke;
+                    if (bmi != null && bmi.BaseMethod.IsFallthrough) continue;
+                    sb.Append(nxtRequiresDoubleSpace ? "\n\n" : "  \n");
+                    nxtRequiresDoubleSpace = false;
+                    if (used <= 1 && bmi != null && child.Try(out var c)) {
+                        sb.Append($"as {bmi.BaseMethod.Params[c].AsParameter.Replace("<", "\\<")} (argument #{c+1})");
+                        if (Session.Docs.FindBySignature(bmi.BaseMethod) is { } docs &&
+                            docs.Syntax?.Parameters?.Try(c) is { Description.Length: > 0 } paramDocs) {
+                            sb.Append($": *{paramDocs.Description}*");
+                            nxtRequiresDoubleSpace = true;
+                        }
+                        sb.Append("  \n");
+                    }
+                    if (used > 0) {
+                        sb.Append("in ");
+                    }
+                    sb.Append(ast.Explain().Replace("<", "\\<"));
+                    if ((firstFunc || used <= 1) && bmi != null) {
+                        if (Session.Docs.FindBySignature(bmi.BaseMethod) is { } docs && docs.Summary.Trim() is {Length: > 0} summary)
+                            sb.Append($"  \n*{summary}*");
+                        firstFunc = false;
+                        nxtRequiresDoubleSpace = true;
+                    }
+                    ++used;
+                }
+                return new Hover() { Contents = MarkupContent.Markdown(sb.ToString()) };
+            }
             return new Hover() { Contents = $"Couldn't find anything at {position}" };
         } else {
             return new Hover() { Contents = "Couldn't parse the code" };

@@ -22,6 +22,7 @@ public class LanguageServerSession {
     public JsonRpcClient RpcClient { get; }
     public ClientProxy Client { get; }
     public ConcurrentDictionary<Uri, SessionDocument> Documents { get; }
+    public Documentation Docs { get; }
 
     public LanguageServerSettings Settings { get; set; } = new();
 
@@ -30,6 +31,13 @@ public class LanguageServerSession {
         var builder = new JsonRpcProxyBuilder { ContractResolver = contractResolver };
         Client = new ClientProxy(builder, rpcClient);
         Documents = new ConcurrentDictionary<Uri, SessionDocument>();
+        Docs = new Documentation(Directory.GetFiles("./")
+            .Where(f => {
+                var lf = Path.GetFileName(f);
+                return lf.EndsWith(".yml") && lf.StartsWith("Danmokou.");
+            })
+            .Select(File.ReadAllText)
+            .ToArray());
     }
 
     public void StopServer() {

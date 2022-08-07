@@ -15,17 +15,6 @@ using Range = LanguageServer.VsCode.Contracts.Range;
 
 namespace DMKLanguageServer;
 
-public readonly record struct StagedSemanticToken(Range Position, string TokenType, string[]? TokenMods) {
-    public int Line => Position.Start.Line;
-    public int StartChar => Position.Start.Character;
-    public int Length => (Position.End.Line == Position.Start.Line) ?
-        Position.End.Character - Position.Start.Character :
-        80;
-    public uint EncodedTokenType => Diagnostics.SemanticTokens.Legend.EncodeType(TokenType);
-    public uint EncodedTokenMods => TokenMods == null ?
-        0u :
-        Diagnostics.SemanticTokens.Legend.EncodeMods(TokenMods);
-}
 public static class Diagnostics {
     public static readonly SemanticTokensOptions SemanticTokens = new() {
         Legend = new(SemanticTokenTypes.Values,
@@ -96,8 +85,12 @@ public static class Diagnostics {
         // exceptional structures like phase arguments being out-of-order
         foreach (var token in ast.ToSemanticTokens().OrderBy(t => t.Position.Start.Index)) {
             if (token.Position.Empty) continue;
-            //may need to continue if token.Start.Index < prev.End.Index
             var nloc = token.Position.ToRange();
+            //Note that orderBy is stable, so this should always preserve the "topmost" token
+            // when a macro or other overlapping structure is used
+            if (nloc.Start.Line < prevLoc.End.Line || 
+                nloc.Start.Line == prevLoc.End.Line && nloc.Start.Character < prevLoc.End.Character)
+                continue;
             if (nloc.Start.Line == prevLoc.Start.Line) {
                 output.Add(0);
                 output.Add((uint)(nloc.Start.Character - prevLoc.Start.Character));
