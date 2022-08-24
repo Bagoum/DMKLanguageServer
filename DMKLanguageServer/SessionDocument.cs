@@ -1,4 +1,5 @@
-﻿using BagoumLib.Events;
+﻿using BagoumLib;
+using BagoumLib.Events;
 using Danmokou.Reflection;
 using LanguageServer.VsCode.Contracts;
 using LanguageServer.VsCode.Server;
@@ -22,7 +23,14 @@ public class SessionDocument {
 
     public LanguageServerSession Session { get; }
     public TextDocument Document { get; private set; }
+    /// <summary>
+    /// The last parse that passed all stages and could be compiled.
+    /// </summary>
     public IAST? LastSuccessfulParse { get; private set; }
+    /// <summary>
+    /// The last parse that passed lexing, but may have failed typechecking.
+    /// </summary>
+    public (IAST ast, Reflector.ReflCtx ctx)? LastParse { get; private set; }
     
     public SessionDocument(LanguageServerSession session, TextDocumentItem doc) {
         Session = session;
@@ -36,10 +44,12 @@ public class SessionDocument {
             else
                 impendingChanges.AddRange(changes);
         }
+        MakeChanges();
+        /* This causes problems with ordering of change -> request autocomplete
         if (updateChangesDelayTask == null || updateChangesDelayTask.IsCompleted) {
             updateChangesDelayTask = Task.Delay(RenderChangesDelay);
             updateChangesDelayTask.ContinueWith(t => Task.Run((Action)MakeChanges));
-        }
+        }*/
     }
     private void MakeChanges() {
         List<TextDocumentContentChangeEvent>? localChanges;
@@ -53,10 +63,13 @@ public class SessionDocument {
     }
 
     public IEnumerable<Diagnostic> Lint() {
-        var (ast, errs) = Diagnostics.LintDocument(Document, Session.Settings.MaxNumberOfProblems);
-        if (ast != null)
-            lock (syncLock)
-                LastSuccessfulParse = ast;
+        var (parse, errs) = Diagnostics.LintDocument(Document, Session.Settings.MaxNumberOfProblems);
+        if (parse.Try(out var p))
+            lock (syncLock) {
+                LastParse = p;
+                if (!p.ast.IsUnsound)
+                    LastSuccessfulParse = p.ast;
+            }
         return errs;
     }
 

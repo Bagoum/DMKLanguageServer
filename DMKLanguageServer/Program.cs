@@ -2,6 +2,7 @@
 using System.Reflection;
 using BagoumLib.Events;
 using Danmokou.Core;
+using Danmokou.Reflection;
 using JsonRpc.Client;
 using JsonRpc.Contracts;
 using JsonRpc.Server;
@@ -31,6 +32,7 @@ public static class Program {
                      .Where(x => Path.GetFileName(x).StartsWith("Danmokou"))
                      .Select(AssemblyName.GetAssemblyName))
             Assembly.Load(asm);
+        Reflector.SOFT_FAIL_ON_UNMATCHED_LSTRING = true;
         ServiceLocator.Register<IDMKLocaleProvider>(new DMKLocale());
         
         StreamWriter? logWriter = null;

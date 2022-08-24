@@ -40,9 +40,10 @@ public class InitializationService : DMKLanguageServiceBase {
     [JsonRpcMethod(IsNotification = true)]
     public async Task Initialized() {
         await Client.Window.ShowMessage(MessageType.Info,
-            $"Hello from language server {Environment.CurrentDirectory}. Params: {Environment.CommandLine}");
+            $"The DMK scripting language server is now running.");
+        /*{Environment.CurrentDirectory}.
         var choice = await Client.Window.ShowMessage(MessageType.Warning, "Wanna drink?", "Yes", "No");
-        await Client.Window.ShowMessage(MessageType.Info, $"You chose {choice?.ToString() ?? "Nothing"}.");
+        await Client.Window.ShowMessage(MessageType.Info, $"You chose {choice?.ToString() ?? "Nothing"}.");*/
     }
 
     [JsonRpcMethod]

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using BagoumLib;
 using Danmokou.Core;
 using Danmokou.Reflection;
 using Danmokou.SM;
@@ -22,11 +23,7 @@ public static class Diagnostics {
         Full = new SemanticTokensOptions.OptionsFull()
     };
 
-    private static readonly string[] Keywords =
-        { ".NET Framework", ".NET Core", ".NET Standard", ".NET Compact", ".NET" };
-
-    public static (IAST? ast, IEnumerable<Diagnostic> diagnostics) LintDocument(TextDocument document, int maxNumberOfProblems) {
-        var diag = new List<Diagnostic>();
+    public static ((IAST ast, Reflector.ReflCtx ctx)? parse, IEnumerable<Diagnostic> diagnostics) LintDocument(TextDocument document, int maxNumberOfProblems) {
         var content = document.Content;
         /*
         if (string.IsNullOrWhiteSpace(content)) {
@@ -41,30 +38,26 @@ public static class Diagnostics {
             return (null, parse.Right.Select(err => err.ToDiagnostic(content)));
         var q = new PUListParseQueue((parse.Left, parse.Left.ToRange()), null);
         q.Ctx.UseFileLinks = false;
-        IAST ast;
-        try {
-            ast = StateMachine.Create(q);
-        } catch (Exception exc) {
-            //We get the position from the most deeply nested ReflectedException
-            // and construct the message in reverse
-            ReflectionException? re = null;
-            var msgs = new List<string>();
-            var e = exc;
-            for (; e != null; e = e.InnerException) {
-                if (e is ReflectionException refl) {
-                    msgs.Add(refl.WithPositionInMessage().Message);
-                    re = refl;
-                } else
-                    msgs.Add(e.Message);
-            }
-            msgs.Reverse();
-            var msg = string.Join("\n", msgs);
-            var showLoc = re?.HighlightedPosition ?? re?.Position;
-            
-            //TODO partial ast construction
-            return (null, new[] { new Diagnostic(DiagnosticSeverity.Error, 
-                showLoc?.ToRange() ?? new Range(0, 0, 9999, 999), "Typechecking", 
-                msg) });
+        var ast = StateMachine.Create(q);
+        var excs = ast.Exceptions.ToList();
+        var errs = excs.Select(err => {
+                var innermost = err;
+                for (Exception? e = err; e != null; e = e.InnerException)
+                    if (e is ReflectionException re)
+                        innermost = re;
+                return new Diagnostic(DiagnosticSeverity.Error,
+                    (innermost.HighlightedPosition ?? innermost.Position).ToRange(),
+                    "Typechecking", Exceptions.PrintNestedExceptionInverted(err, false));
+            });
+        if (q.HasLeftovers(out var qpi)) {
+            var loc = q.GetCurrentUnit(out _).Position;
+            if (q.Ctx.NonfatalErrorsForPosition(loc).ToList() is { Count:>0 } nfExcs)
+                errs = errs.Concat(nfExcs.Select(nfExc => 
+                    new Diagnostic(DiagnosticSeverity.Error, loc.ToRange(), "Typechecking",
+                        Exceptions.PrintNestedExceptionInverted(nfExc.Item1, false))));
+            else
+                errs = errs.Append(new Diagnostic(DiagnosticSeverity.Error, loc.ToRange(), "Parsing", 
+                    Exceptions.PrintNestedExceptionInverted(q.WrapThrowLeftovers(qpi), false)));
         }
         var warnings = ast.WarnUsage(q.Ctx).Select(d => new Diagnostic(
             d switch {
@@ -72,7 +65,7 @@ public static class Diagnostics {
                 _ => DiagnosticSeverity.Error
             }, d.Position.ToRange(), "Typechecking", d.Message
         ));
-        return (ast, warnings);
+        return ((ast, q.Ctx), errs.Concat(warnings));
     }
 
     //Most functions here should operate over AST so they can be
