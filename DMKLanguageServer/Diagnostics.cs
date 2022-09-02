@@ -1,17 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using BagoumLib;
+﻿using BagoumLib;
 using Danmokou.Core;
 using Danmokou.Reflection;
 using Danmokou.SM;
 using Danmokou.SM.Parsing;
-using LanguageServer.Contracts;
 using LanguageServer.VsCode.Contracts;
 using LanguageServer.VsCode.Server;
-using Mizuhashi;
 using Diagnostic = LanguageServer.VsCode.Contracts.Diagnostic;
-using Position = LanguageServer.VsCode.Contracts.Position;
 using Range = LanguageServer.VsCode.Contracts.Range;
 
 namespace DMKLanguageServer;
