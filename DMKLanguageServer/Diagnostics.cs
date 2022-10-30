@@ -30,7 +30,16 @@ public static class Diagnostics {
         var parse = SMParser.ExportSMParserToParsedUnits(content);
         if (parse.IsRight)
             return (null, parse.Right.Select(err => err.ToDiagnostic(content)));
-        var q = new PUListParseQueue((parse.Left, parse.Left.ToRange()), null);
+        PUListParseQueue q = null!;
+        try {
+            q = new PUListParseQueue((parse.Left, parse.Left.ToRange()), null);
+        } catch (ReflectionException e) {
+            return (null, new[] {
+                new Diagnostic(DiagnosticSeverity.Error,
+                    (e.HighlightedPosition ?? e.Position).ToRange(), "Parsing",
+                    Exceptions.PrintNestedExceptionInverted(e, false))
+            });
+        }
         q.Ctx.UseFileLinks = false;
         var ast = StateMachine.Create(q);
         var excs = ast.Exceptions.ToList();

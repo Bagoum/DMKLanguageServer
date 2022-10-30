@@ -1,8 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
-using Danmokou.Core;
-using JsonRpc;
-using JsonRpc.Contracts;
+﻿using JsonRpc.Contracts;
 using JsonRpc.Messages;
 using JsonRpc.Server;
 using LanguageServer.VsCode.Contracts;
@@ -33,7 +29,10 @@ public class InitializationService : DMKLanguageServiceBase {
                 Change = TextDocumentSyncKind.Incremental
             },
             DocumentSymbolProvider = new DocumentSymbolOptions(),
-            SemanticTokensProvider = Diagnostics.SemanticTokens
+            SemanticTokensProvider = Diagnostics.SemanticTokens,
+            InlayHintProvider = Session.InitResults.InlayHints ?
+                new InlayHintOptions() { ResolveProvider = false } :
+                null
         });
     }
 
@@ -41,6 +40,14 @@ public class InitializationService : DMKLanguageServiceBase {
     public async Task Initialized() {
         await Client.Window.ShowMessage(MessageType.Info,
             $"The DMK scripting language server is now running.");
+        if (Session.InitResults.CustomDLL is {} dll)
+            await Client.Window.ShowMessage(MessageType.Info, dll.success ?
+                $"Using custom DLLs from {dll.path}" :
+                $"Failed to load custom DLLs from {dll.path}");
+        if (Session.InitResults.CustomYML is {} yml)
+            await Client.Window.ShowMessage(MessageType.Info, yml.success ?
+                $"Using custom documentation from {yml.path}" :
+                $"Failed to load custom documentation from {yml.path}");
         /*{Environment.CurrentDirectory}.
         var choice = await Client.Window.ShowMessage(MessageType.Warning, "Wanna drink?", "Yes", "No");
         await Client.Window.ShowMessage(MessageType.Info, $"You chose {choice?.ToString() ?? "Nothing"}.");*/

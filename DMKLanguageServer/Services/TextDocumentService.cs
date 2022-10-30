@@ -5,13 +5,12 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BagoumLib;
-using BagoumLib.Reflection;
-using Danmokou.Core;
 using Danmokou.Reflection;
 using Danmokou.SM;
 using JetBrains.Annotations;
 using JsonRpc.Contracts;
 using JsonRpc.Server;
+using LanguageServer.Contracts;
 using LanguageServer.VsCode;
 using LanguageServer.VsCode.Contracts;
 using LanguageServer.VsCode.Server;
@@ -43,7 +42,7 @@ public class TextDocumentService : DMKLanguageServiceBase {
                     sb.Append(nxtRequiresDoubleSpace ? "\n\n" : "  \n");
                     nxtRequiresDoubleSpace = false;
                     if (used == 1 && bmi != null && child.Try(out var c)) {
-                        sb.Append($"as {bmi.BaseMethod.Params[c].AsParameter.Replace("<", "\\<")} (argument #{c+1})");
+                        sb.Append($"as {bmi.BaseMethod.Params[c].AsParameter.EscapeTypeMD()} (argument #{c+1})");
                         if (Session.Docs.FindBySignature(bmi.BaseMethod) is { } docs &&
                             docs.Syntax?.Parameters?.Try(c) is { Description.Length: > 0 } paramDocs) {
                             sb.Append($": *{paramDocs.Description}*");
@@ -177,6 +176,58 @@ public class TextDocumentService : DMKLanguageServiceBase {
             }
         }
         return new CompletionList(AllCompletionItems);
+    }
+
+    [JsonRpcMethod]
+    public InlayHint[]? InlayHint(TextDocumentIdentifier textDocument, Range range) {
+        
+        //can be done with failed AST
+        if (Session.Documents.TryGetValue(textDocument.Uri, out var doc) && doc.LastParse is { } root) {
+            var dmkr = range.ToDMKRange(doc.Document.Content);
+            var hints = new List<InlayHint>();
+            bool IsInRange(IAST ast) =>
+                ast.Position.Start.Index <= dmkr.End.Index && ast.Position.End.Index >= dmkr.Start.Index;
+            void Process(IAST ast) {
+                if (IsInRange(ast)) {
+                    if (ast is AST.BaseMethodInvoke bmi && !bmi.BaseMethod.IsFallthrough && bmi.Parenthesized && bmi.Params.Length > 1) {
+                        bool isSm = bmi is AST.MethodInvoke { Type: AST.MethodInvoke.InvokeType.SM };
+                        foreach (var (i, c) in bmi.Params.Enumerate()) {
+                            if (isSm && i == 0 && bmi.BaseMethod.Params[0].Type == StateMachine.SMChildStatesType)
+                                continue;
+                            if (bmi.BaseMethod.Params[i].NonExplicit)
+                                continue;
+                            //This filters out macro cases
+                            if (c.Position.Start.Index <= ast.Position.Start.Index || c.Position.End.Index >= ast.Position.End.Index)
+                                continue;
+                            var tt = new StringBuilder();
+                            tt.Append(bmi.BaseMethod.AsSignatureWithParamMod((p, j) =>
+                                (j == i ? $"**{p.AsParameter}**" : p.AsParameter).EscapeTypeMD()));
+                            if (Session.Docs.FindBySignature(bmi.BaseMethod) is { } docs &&
+                                docs.Syntax?.Parameters?.Try(i) is { Description.Length: > 0 } pDocs) {
+                                tt.Append($"\n\n*{pDocs.Description}*");
+                            }
+                            
+                            hints.Add(new(c.Position.Start.ToPosition(), bmi.BaseMethod.Params[i].Name + ":", InlayHintKind.Parameter) {
+                                PaddingRight = true,
+                                Tooltip = MarkupContent.Markdown(tt.ToString())
+                            });
+                        }
+                    }
+                    foreach (var c in ast.Children)
+                        Process(c);
+                }
+            }
+            Process(root.ast);
+            return hints.ToArray();
+        }
+        return null;
+        /*return new[] {
+            new InlayHint(new Position(3, 6), "hello:", InlayHintKind.Type),
+            new InlayHint(new Position(4, 9), "world:", InlayHintKind.Parameter) {
+                PaddingRight = true,
+                Tooltip = "foo bar"
+            }
+        };*/
     }
 
     //handle implicit conversions via constructor types, TaskPattern/TTaskpattern, fallthrough/compile

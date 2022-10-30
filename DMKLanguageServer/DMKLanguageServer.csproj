@@ -5,6 +5,7 @@
         <TargetFramework>net6.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <RunPostBuildEvent>Always</RunPostBuildEvent>
     </PropertyGroup>
 
     <ItemGroup>
@@ -27,10 +28,10 @@
             <HintPath>..\..\unity\Danmokou\Builds\dllsrc\Danmokou_Data\Managed\Mizuhashi.dll</HintPath>
         </Reference>
         <Reference Include="LanguageServer.VsCode">
-          <HintPath>..\..\LanguageServer.NET\LanguageServer.VsCode\bin\Debug\net6.0\LanguageServer.VsCode.dll</HintPath>
+          <HintPath>..\..\LanguageServer.NET\LanguageServer.VsCode\bin\Release\net6.0\LanguageServer.VsCode.dll</HintPath>
         </Reference>
         <Reference Include="LanguageServer.Contracts">
-            <HintPath>..\..\LanguageServer.NET\LanguageServer.VsCode\bin\Debug\net6.0\LanguageServer.Contracts.dll</HintPath>
+            <HintPath>..\..\LanguageServer.NET\LanguageServer.VsCode\bin\Release\net6.0\LanguageServer.Contracts.dll</HintPath>
         </Reference>
     </ItemGroup>
     
@@ -42,6 +43,7 @@
         <PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0" />
         <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="6.0.0" />
         <PackageReference Include="NReco.Logging.File" Version="1.1.5" />
+        <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
         <PackageReference Include="System.Reactive" Version="5.0.0" />
         <PackageReference Include="YamlDotNet" Version="12.0.0" />
     </ItemGroup>
@@ -52,5 +54,12 @@
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
+
+    <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+      <Exec Command="IF not exist $(OutDir)configDLL (mkdir $(OutDir)configDLL)&#xA;move $(OutDir)Danmokou*.dll $(OutDir)configDLL\&#xA;" />
+    </Target>
+    <Target Name="PostPublish" AfterTargets="Publish">
+        <Exec Command="IF not exist $(PublishDir)configDLL (mkdir $(PublishDir)configDLL)&#xA;move $(PublishDir)Danmokou*.dll $(PublishDir)configDLL\&#xA;" />
+    </Target>
 
 </Project>

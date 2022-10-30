@@ -11,4 +11,6 @@ internal static class Helpers {
     public static string GetTimeStamp() {
         return DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
     }
+
+    public static string EscapeTypeMD(this string typ) => typ.Replace("<", "\\<");
 }
