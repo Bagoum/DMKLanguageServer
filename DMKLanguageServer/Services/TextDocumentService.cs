@@ -55,10 +55,15 @@ public class TextDocumentService : DMKLanguageServiceBase {
                     }
                     sb.Append(ast.Explain().Replace("<", "\\<"));
                     if ((firstFunc || used <= 1) && bmi != null) {
-                        if (Session.Docs.FindBySignature(bmi.BaseMethod) is { } docs && docs.Summary is {Length: > 0} summary)
+                        if (Session.Docs.FindBySignature(bmi.BaseMethod) is { Summary: {Length: > 0} summary })
                             sb.Append($"  \n*{summary}*");
                         firstFunc = false;
                         nxtRequiresDoubleSpace = true;
+                    } else if (used == 0 && ast is AST.Preconstructed<object?> prec && prec.Value!.GetType().IsEnum) {
+                        if (Session.Docs.FindEnum(prec.Value) is { Summary: { Length: > 0 } summary }) {
+                            sb.Append($"  \n*{summary}*");
+                            nxtRequiresDoubleSpace = true;
+                        }
                     }
                     ++used;
                 }return new Hover() { Contents = MarkupContent.Markdown(sb.ToString()) };

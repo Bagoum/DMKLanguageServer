@@ -17,7 +17,8 @@ public static class Diagnostics {
         Full = new SemanticTokensOptions.OptionsFull()
     };
 
-    public static ((IAST ast, Reflector.ReflCtx ctx)? parse, IEnumerable<Diagnostic> diagnostics) LintDocument(TextDocument document, int maxNumberOfProblems) {
+    public static ((IAST ast, Reflector.ReflCtx ctx)? parse, IEnumerable<Diagnostic> diagnostics) LintDocument(
+        TextDocument document, int maxNumberOfProblems) {
         var content = document.Content;
         /*
         if (string.IsNullOrWhiteSpace(content)) {
@@ -44,22 +45,22 @@ public static class Diagnostics {
         var ast = StateMachine.Create(q);
         var excs = ast.Exceptions.ToList();
         var errs = excs.Select(err => {
-                var innermost = err;
-                for (Exception? e = err; e != null; e = e.InnerException)
-                    if (e is ReflectionException re)
-                        innermost = re;
-                return new Diagnostic(DiagnosticSeverity.Error,
-                    (innermost.HighlightedPosition ?? innermost.Position).ToRange(),
-                    "Typechecking", Exceptions.PrintNestedExceptionInverted(err, false));
-            });
+            var innermost = err;
+            for (Exception? e = err; e != null; e = e.InnerException)
+                if (e is ReflectionException re)
+                    innermost = re;
+            return new Diagnostic(DiagnosticSeverity.Error,
+                (innermost.HighlightedPosition ?? innermost.Position).ToRange(),
+                "Typechecking", Exceptions.PrintNestedExceptionInverted(err, false));
+        });
         if (q.HasLeftovers(out var qpi)) {
             var loc = q.GetCurrentUnit(out _).Position;
-            if (q.Ctx.NonfatalErrorsForPosition(loc).ToList() is { Count:>0 } nfExcs)
-                errs = errs.Concat(nfExcs.Select(nfExc => 
+            if (q.Ctx.NonfatalErrorsForPosition(loc).ToList() is { Count: > 0 } nfExcs)
+                errs = errs.Concat(nfExcs.Select(nfExc =>
                     new Diagnostic(DiagnosticSeverity.Error, loc.ToRange(), "Typechecking",
                         Exceptions.PrintNestedExceptionInverted(nfExc.Item1, false))));
             else
-                errs = errs.Append(new Diagnostic(DiagnosticSeverity.Error, loc.ToRange(), "Parsing", 
+                errs = errs.Append(new Diagnostic(DiagnosticSeverity.Error, loc.ToRange(), "Parsing",
                     Exceptions.PrintNestedExceptionInverted(q.WrapThrowLeftovers(qpi), false)));
         }
         var warnings = ast.WarnUsage(q.Ctx).Select(d => new Diagnostic(
@@ -73,7 +74,7 @@ public static class Diagnostics {
 
     //Most functions here should operate over AST so they can be
     // called with LastSuccessfulParse from callers
-    
+
     public static uint[] GetSemanticTokens(IAST ast) {
         var prevLoc = new Range(0, 0, 0, 0);
         var output = new List<uint>();
@@ -84,7 +85,7 @@ public static class Diagnostics {
             var nloc = token.Position.ToRange();
             //Note that orderBy is stable, so this should always preserve the "topmost" token
             // when a macro or other overlapping structure is used
-            if (nloc.Start.Line < prevLoc.End.Line || 
+            if (nloc.Start.Line < prevLoc.End.Line ||
                 nloc.Start.Line == prevLoc.End.Line && nloc.Start.Character < prevLoc.End.Character)
                 continue;
             if (nloc.Start.Line == prevLoc.Start.Line) {

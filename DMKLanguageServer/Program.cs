@@ -42,7 +42,7 @@ public static class Program {
         //    or in the default nested directory. (The code immediately below performs verification
         //    on the custom directory)
         //3. We also immediately load all the DMK DLLs so they are captured by Reflector.
-        
+
         (bool, string)? loadSuccess = null;
         if (!string.IsNullOrWhiteSpace(dllPath) && Directory.Exists(dllPath) &&
             Directory.EnumerateFiles(dllPath).Select(Path.GetFileName).ToArray() is { } provided &&

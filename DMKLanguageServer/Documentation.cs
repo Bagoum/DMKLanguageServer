@@ -52,6 +52,8 @@ public class Documentation {
 
     private readonly Dictionary<string, Object> MethodsByFullName = new();
     private readonly Dictionary<string, Object> ClassesByFullName = new();
+    private readonly HashSet<string> EnumRoots = new();
+    private readonly Dictionary<string, Object> EnumsByFullName = new();
     public Documentation(string[] ymlContents) {
         foreach (var yml in ymlContents) {
             var data = Deserializer.Deserialize<DocfxFile>(yml);
@@ -71,6 +73,12 @@ public class Documentation {
                         obj.Name.Length;
                     var key = $"{obj.Parent}.{obj.Name[..splitOn]}";
                     ClassesByFullName[key] = obj;
+                } else if (obj.Type == "Enum")
+                    EnumRoots.Add(obj.FullName);
+                else if (obj.Type == "Field" && EnumRoots.Contains(obj.Parent)) {
+                    //The enum class, eg. PhaseType, is marked as type Enum,
+                    // but its components, eg. PhaseType.Nonspell, are marked as type field
+                    EnumsByFullName[obj.FullName] = obj;
                 }
             }
         }
@@ -91,5 +99,10 @@ public class Documentation {
     public Object? FindBySignature(MethodInfo mi) {
         var name = $"{TypePrinter.Print(mi.DeclaringType!)}.{mi.Name}";
         return MethodsByFullName.TryGetValue(name, out var v) ? v : null;
+    }
+
+    public Object? FindEnum(object enumValue) {
+        var name = $"{TypePrinter.Print(enumValue.GetType())}.{enumValue.ToString()}";
+        return EnumsByFullName.TryGetValue(name, out var v) ? v : null;
     }
 }
