@@ -28,10 +28,10 @@
             <HintPath>..\..\unity\Danmokou\Builds\dllsrc\Danmokou_Data\Managed\Mizuhashi.dll</HintPath>
         </Reference>
         <Reference Include="LanguageServer.VsCode">
-          <HintPath>..\..\LanguageServer.NET\LanguageServer.VsCode\bin\Release\net6.0\LanguageServer.VsCode.dll</HintPath>
+          <HintPath>..\..\LanguageServer.NET\LanguageServer.VsCode\bin\Release\netstandard2.1\LanguageServer.VsCode.dll</HintPath>
         </Reference>
         <Reference Include="LanguageServer.Contracts">
-            <HintPath>..\..\LanguageServer.NET\LanguageServer.VsCode\bin\Release\net6.0\LanguageServer.Contracts.dll</HintPath>
+            <HintPath>..\..\LanguageServer.NET\LanguageServer.VsCode\bin\Release\netstandard2.1\LanguageServer.Contracts.dll</HintPath>
         </Reference>
     </ItemGroup>
     
@@ -43,6 +43,7 @@
         <PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0" />
         <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="6.0.0" />
         <PackageReference Include="NReco.Logging.File" Version="1.1.5" />
+        <PackageReference Include="System.Collections.Immutable" Version="7.0.0" />
         <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
         <PackageReference Include="System.Reactive" Version="5.0.0" />
         <PackageReference Include="YamlDotNet" Version="12.0.0" />
@@ -50,6 +51,14 @@
 
     <ItemGroup>
         <Content Include="..\..\unity\Danmokou\docs\api\Danmokou*.yml">
+            <Visible>false</Visible>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="UnityEngine.CoreModule.xml">
+            <Visible>false</Visible>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.7.1\mscorlib.xml">
             <Visible>false</Visible>
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>

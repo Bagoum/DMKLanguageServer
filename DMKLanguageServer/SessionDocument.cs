@@ -1,6 +1,8 @@
 ﻿using BagoumLib;
 using BagoumLib.Events;
+using BagoumLib.Functional;
 using Danmokou.Reflection;
+using R2 = Danmokou.Reflection2;
 using LanguageServer.VsCode.Contracts;
 using LanguageServer.VsCode.Server;
 using Diagnostic = LanguageServer.VsCode.Contracts.Diagnostic;
@@ -26,11 +28,27 @@ public class SessionDocument {
     /// <summary>
     /// The last parse that passed all stages and could be compiled.
     /// </summary>
-    public IAST? LastSuccessfulParse { get; private set; }
+    public IDebugAST? LastSuccessfulParse { get; private set; }
+    
     /// <summary>
     /// The last parse that passed lexing, but may have failed typechecking.
     /// </summary>
-    public (IAST ast, Reflector.ReflCtx ctx)? LastParse { get; private set; }
+    public (IDebugAST ast, string content, Reflector.ReflCtx? ctx)? LastParse { get; private set; }
+
+    /// <summary>
+    /// Returns the last BDSL2 parse (successful or not); or the last BDSL1 parse (successful only).
+    /// <br/>In BDSL1, there is limited metadata available on unsuccessful parses.
+    /// </summary>
+    public IDebugAST? LastBDSL2ParseOrLastSuccessfulBDSL1Parse =>
+        LastParse?.ast is R2.IAST bdsl2 ?
+            bdsl2 :
+            LastSuccessfulParse;
+    
+    /// <summary>
+    /// True if the most recent change was successfully lexed into <see cref="LastParse"/>.
+    /// </summary>
+    public bool LastChangeWasLexed { get; private set; }
+    public bool LastChangeWasFullyParsed => LastChangeWasLexed && (ReferenceEquals(LastParse?.ast, LastSuccessfulParse));
     
     public SessionDocument(LanguageServerSession session, TextDocumentItem doc) {
         Session = session;
@@ -63,13 +81,22 @@ public class SessionDocument {
     }
 
     public IEnumerable<Diagnostic> Lint() {
-        var (parse, errs) = Diagnostics.LintDocument(Document, Session.Settings.MaxNumberOfProblems);
-        if (parse.Try(out var p))
-            lock (syncLock) {
-                LastParse = p;
-                if (!p.ast.IsUnsound)
-                    LastSuccessfulParse = p.ast;
-            }
+        var (parse, success, errs) = Diagnostics.LintDocument(Document, Session.Settings.MaxNumberOfProblems, out var content);
+        lock (syncLock) {
+            if (parse.Try(out var p)) {
+                LastChangeWasLexed = true;
+                if (p.IsRight) {
+                    if (success)
+                        LastSuccessfulParse = p.Right;
+                    LastParse = (p.Right, content, null);
+                } else {
+                    if (success)
+                        LastSuccessfulParse = p.Left.ast;
+                    LastParse = (p.Left.ast, content, p.Left.ctx);
+                }
+            } else
+                LastChangeWasLexed = false;
+        }
         return errs;
     }
 

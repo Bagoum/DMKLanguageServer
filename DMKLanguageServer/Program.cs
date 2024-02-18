@@ -1,9 +1,11 @@
 ﻿using System.CommandLine;
-using System.Diagnostics;
 using System.Reflection;
+using BagoumLib;
 using BagoumLib.Events;
 using Danmokou.Core;
 using Danmokou.Reflection;
+using Danmokou.Reflection2;
+using Danmokou.SM.Parsing;
 using JsonRpc.Client;
 using JsonRpc.Contracts;
 using JsonRpc.Server;
@@ -15,6 +17,9 @@ using Microsoft.Extensions.Logging;
 namespace DMKLanguageServer;
 
 public static class Program {
+    private static void ttt(ReadOnlySpan<char> s) {
+        
+    }
     public static void Main(string[] args) {
         var debug = new Option<bool>("--debug", description: "Set the server to debug mode");
         var dllPath = new Option<string?>("--dllpath", () => null, description: "Specify the path for built DMK DLLs");
