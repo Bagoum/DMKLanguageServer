@@ -3,15 +3,20 @@ using BagoumLib;
 using BagoumLib.Functional;
 using Danmokou.Core;
 using Danmokou.Reflection;
-using R2 = Danmokou.Reflection2;
 using Danmokou.SM;
 using Danmokou.SM.Parsing;
 using LanguageServer.VsCode.Contracts;
 using LanguageServer.VsCode.Server;
 using Mizuhashi;
+using Scriptor;
+using Scriptor.Analysis;
+using Scriptor.Compile;
+using Scriptor.Definition;
+using Scriptor.Expressions;
+using Scriptor.Reflection;
 using Diagnostic = LanguageServer.VsCode.Contracts.Diagnostic;
 using Range = LanguageServer.VsCode.Contracts.Range;
-using static Danmokou.Reflection2.Helpers;
+using IAST = Danmokou.Reflection.IAST;
 
 namespace DMKLanguageServer;
 
@@ -40,39 +45,49 @@ public static class Diagnostics {
             }, d.Position.ToRange(), "Typechecking", d.Message
         );
 
-    private static (R2.IAST? parse, bool success, IEnumerable<Diagnostic> diagnostics) ParseBDSL2(ref string content) {
-        R2.ST.Block pblock = null!;
-        R2.LexerMetadata metadata;
+    private const string argAnnotation = "vscode:";
+    private static (Scriptor.Compile.IAST? parse, bool success, IEnumerable<Diagnostic> diagnostics) ParseBDSL2(ref string content) {
+        ST.Block pblock = null!;
+        LexerMetadata metadata;
         try {
-            var parse = Parse(ref content, out metadata);
-            if (parse.IsRight)
-                return (null, false, new[] { ToDiagnostic(parse.Right, "Lexing/Parsing") });
-            pblock = parse.Left;
+            pblock = CompileHelpers.Parse(ref content, out metadata);
         } catch (Exception e) {
-            return (null, false, new[] { ToDiagnostic(e, "Lexing") });
+            return (null, false, new[] { ToDiagnostic(e, "Lexing/Parsing") });
         }
-        var rs = R2.LexicalScope.NewTopLevelScope();
-        var ast = pblock.AnnotateWithParameters(rs, Array.Empty<IDelegateArg>()).LeftOrRight<R2.AST.Block, R2.AST.Failure, R2.IAST>();
+        List<ReflectionException> errs = new();
+        var rs = LexicalScope.NewTopLevelScope();
+        var args = metadata.Comments.Where(x => x.text.StartsWith(argAnnotation))
+            .SelectNotNull(x => {
+                var split = x.text[argAnnotation.Length..].Split("::");
+                var typ = LangParser.TypeFromString(split[1].Trim());
+                if (typ.IsRight) {
+                    errs.Add(new ReflectionException(x.pos, typ.Right));
+                    return null;
+                }
+                return new DelegateArg(split[0].Trim(), typ.Left) as IDelegateArg;
+            }).ToArray();
+        
+        var ast = pblock.AnnotateWithParameters(new(rs), args).LeftOrRight<Scriptor.Compile.AST.Block, Scriptor.Compile.AST.Failure, Scriptor.Compile.IAST>();
         rs.SetDocComments(metadata);
-        var typ = R2.IAST.Typecheck(ast, rs.GlobalRoot.Resolver, rs);
-        var errs = ast.FirstPassExceptions().ToList();
+        var typ = Scriptor.Compile.IAST.Typecheck(ast, rs.GlobalRoot.Resolver, rs);
+        errs.AddRange(ast.FirstPassExceptions());
         //typecheck before returning initial errors so we can possibly get Failure typechecks
         if (errs.Count > 0)
             return (ast, false, errs.Select(e => ToDiagnostic(e, "Parsing")));
         if (typ.IsRight)
             try {
-                return (ast, false, new[] { ToDiagnostic(R2.IAST.EnrichError(typ.Right), "Typechecking") });
+                return (ast, false, new[] { ToDiagnostic(Scriptor.Compile.IAST.EnrichError(typ.Right), "Typechecking") });
             } catch (Exception e) {
                 return (ast, false, new[] { ToDiagnostic(e, "Typechecking") });
             }
-        errs = ast.Verify().ToList();
+        errs.AddRange(ast.Verify());
         return (ast, !errs.Any(), ast.WarnUsage().Select(ToDiagnostic).Concat(
                     errs.Select(e => ToDiagnostic(e, "Verification"))));
     }
 
-    private static readonly Dictionary<string, (string content, Either<R2.EnvFrame,ReflectionException> result)> 
+    private static readonly Dictionary<string, (string content, Either<EnvFrame,ReflectionException> result)> 
         mostRecentImported = new();
-    private static Either<R2.EnvFrame,ReflectionException> LoadImport(R2.ST.Import imp, string fileFullName, string content) {
+    private static Either<EnvFrame,ReflectionException> LoadImport(ST.Import imp, string fileFullName, string content) {
         if (mostRecentImported.TryGetValue(fileFullName, out var lastParse) && lastParse.content == content)
             return lastParse.result;
         var result = _RunLoadImport(imp, fileFullName, content);
@@ -81,7 +96,7 @@ public static class Diagnostics {
     }
 
     private static readonly Stack<string> importStack = new();
-    private static Either<R2.EnvFrame,ReflectionException> _RunLoadImport(R2.ST.Import imp, string fileFullName, string content) {
+    private static Either<EnvFrame,ReflectionException> _RunLoadImport(ST.Import imp, string fileFullName, string content) {
         var shortname = Path.GetFileName(fileFullName);
         if (importStack.Contains(fileFullName)) {
             var sb = new StringBuilder();
@@ -95,7 +110,7 @@ public static class Diagnostics {
         }
         importStack.Push(fileFullName);
         try {
-            return R2.Helpers.ParseAndCompileErased(content);
+            return CompileHelpers.ParseAndCompileErased(content);
         } catch (Exception e) {
             if (e is ReflectionException re && e.Message.Contains("There is a circular import"))
                 return re;
@@ -107,19 +122,11 @@ public static class Diagnostics {
         }
     }
     
-    public static (Either<(IAST ast, Reflector.ReflCtx ctx), R2.IAST>? parse, bool success, IEnumerable<Diagnostic> diagnostics) LintDocument(
+    public static (Either<(IAST ast, Reflector.ReflCtx ctx), Scriptor.Compile.IAST>? parse, bool success, IEnumerable<Diagnostic> diagnostics) LintDocument(
         TextDocument document, int maxNumberOfProblems, out string content) {
         content = document.Content;
-        /*
-        if (string.IsNullOrWhiteSpace(content)) {
-            diag.Add(new Diagnostic(DiagnosticSeverity.Hint,
-                new Range(new Position(0, 0), document.PositionAt(content?.Length ?? 0)),
-                "Lexing/Parsing", "This document is empty."));
-            return diag;
-        }*/
-        
         if (!content.TrimStart().StartsWith("<#>")) {
-            Danmokou.Reflection2.ST.Import.Importer = imp => {
+            ServiceLocator.Find<ILangCustomizer>().Import = imp => {
                 if (!imp.Location.Try(out var loc))
                     return new ReflectionException(imp.Position,
                         "For VSCode to locate an import, you must declare the relative filepath of the import. Eg: `import myRefFile at \"./bdsl2 reference file.bdsl\" as mrf");

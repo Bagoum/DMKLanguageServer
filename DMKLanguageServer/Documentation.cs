@@ -7,6 +7,7 @@ using BagoumLib;
 using BagoumLib.Expressions;
 using Danmokou.Reflection;
 using LanguageServer.VsCode.Contracts;
+using Scriptor.Reflection;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 

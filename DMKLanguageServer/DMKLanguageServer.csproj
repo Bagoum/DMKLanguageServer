@@ -10,22 +10,25 @@
 
     <ItemGroup>
         <Reference Include="Danmokou.Danmaku">
-            <HintPath>..\..\unity\Danmokou\Builds\dllsrc\Danmokou_Data\Managed\Danmokou.Danmaku.dll</HintPath>
+            <HintPath>..\..\..\unity\Danmokou\Builds\dllsrc\Danmokou_Data\Managed\Danmokou.Danmaku.dll</HintPath>
         </Reference>
         <Reference Include="Danmokou.Core">
-            <HintPath>..\..\unity\Danmokou\Builds\dllsrc\Danmokou_Data\Managed\Danmokou.Core.dll</HintPath>
+            <HintPath>..\..\..\unity\Danmokou\Builds\dllsrc\Danmokou_Data\Managed\Danmokou.Core.dll</HintPath>
         </Reference>
         <Reference Include="Danmokou.MiniProjects">
-            <HintPath>..\..\unity\Danmokou\Builds\dllsrc\Danmokou_Data\Managed\Danmokou.MiniProjects.dll</HintPath>
+            <HintPath>..\..\..\unity\Danmokou\Builds\dllsrc\Danmokou_Data\Managed\Danmokou.MiniProjects.dll</HintPath>
         </Reference>
         <Reference Include="Danmokou.SiMP">
-            <HintPath>..\..\unity\Danmokou\Builds\dllsrc\Danmokou_Data\Managed\Danmokou.SiMP.dll</HintPath>
+            <HintPath>..\..\..\unity\Danmokou\Builds\dllsrc\Danmokou_Data\Managed\Danmokou.SiMP.dll</HintPath>
         </Reference>
         <Reference Include="BagoumLib">
-            <HintPath>..\..\unity\Danmokou\Builds\dllsrc\Danmokou_Data\Managed\BagoumLib.dll</HintPath>
+            <HintPath>..\..\..\unity\Danmokou\Builds\dllsrc\Danmokou_Data\Managed\BagoumLib.dll</HintPath>
         </Reference>
         <Reference Include="Mizuhashi">
-            <HintPath>..\..\unity\Danmokou\Builds\dllsrc\Danmokou_Data\Managed\Mizuhashi.dll</HintPath>
+            <HintPath>..\..\..\unity\Danmokou\Builds\dllsrc\Danmokou_Data\Managed\Mizuhashi.dll</HintPath>
+        </Reference>
+        <Reference Include="Scriptor">
+            <HintPath>..\..\..\unity\Danmokou\Builds\dllsrc\Danmokou_Data\Managed\Scriptor.dll</HintPath>
         </Reference>
         <Reference Include="LanguageServer.VsCode">
           <HintPath>..\..\LanguageServer.NET\LanguageServer.VsCode\bin\Release\netstandard2.1\LanguageServer.VsCode.dll</HintPath>

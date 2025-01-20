@@ -2,9 +2,10 @@
 using BagoumLib.Events;
 using BagoumLib.Functional;
 using Danmokou.Reflection;
-using R2 = Danmokou.Reflection2;
+using R2 = Scriptor.Compile;
 using LanguageServer.VsCode.Contracts;
 using LanguageServer.VsCode.Server;
+using Scriptor.Compile;
 using Diagnostic = LanguageServer.VsCode.Contracts.Diagnostic;
 
 namespace DMKLanguageServer; 

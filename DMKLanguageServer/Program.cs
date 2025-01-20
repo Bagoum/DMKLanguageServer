@@ -1,11 +1,11 @@
 ﻿using System.CommandLine;
+using System.Diagnostics;
 using System.Reflection;
 using BagoumLib;
 using BagoumLib.Events;
+using Danmokou;
 using Danmokou.Core;
 using Danmokou.Reflection;
-using Danmokou.Reflection2;
-using Danmokou.SM.Parsing;
 using JsonRpc.Client;
 using JsonRpc.Contracts;
 using JsonRpc.Server;
@@ -13,6 +13,7 @@ using JsonRpc.Streams;
 using LanguageServer.VsCode;
 using LanguageServer.VsCode.Contracts;
 using Microsoft.Extensions.Logging;
+using Scriptor.Definition;
 
 namespace DMKLanguageServer;
 
@@ -82,8 +83,10 @@ public static class Program {
     }
     
     private static void StartServer(bool debugMode, string? ymlPath, ProgramInitResults initRes) {
-        Reflector.SOFT_FAIL_ON_UNMATCHED_LSTRING = true;
+        _ = new DMKLanguageServiceProvider();
+        LangParser.SoftFailOnUnmatchedLString = true;
         ServiceLocator.Register<IDMKLocaleProvider>(new Locale.DMKLocale());
+        _ = Reflector.STARTUP_PHASE;
         
         StreamWriter? logWriter = null;
         if (debugMode) {

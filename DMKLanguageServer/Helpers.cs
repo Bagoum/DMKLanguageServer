@@ -2,6 +2,7 @@
 using Danmokou.Reflection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
+using Scriptor.Analysis;
 
 namespace DMKLanguageServer;
 
@@ -18,7 +19,7 @@ internal static class Helpers {
 
     public static readonly Dictionary<Type, List<(string name, object val)>> bdsl2EnumResolvers = new();
     static Helpers() {
-        foreach (var (k, vs) in Reflector.bdsl2EnumResolvers)
+        foreach (var (k, vs) in GlobalScope.Singleton.EnumResolver)
             foreach (var (t, v) in vs)
                 bdsl2EnumResolvers.AddToList(t, (k, v));
     }

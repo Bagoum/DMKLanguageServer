@@ -1,26 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using BagoumLib;
 using BagoumLib.Expressions;
 using BagoumLib.Reflection;
 using BagoumLib.Unification;
-using Danmokou.Core;
 using Danmokou.Danmaku;
 using Danmokou.Reflection;
-using R2 = Danmokou.Reflection2;
+using R2 = Scriptor.Compile;
 using Danmokou.SM;
 using JetBrains.Annotations;
 using JsonRpc.Contracts;
-using JsonRpc.Server;
 using LanguageServer.Contracts;
 using LanguageServer.VsCode;
 using LanguageServer.VsCode.Contracts;
-using LanguageServer.VsCode.Server;
+using Scriptor;
+using Scriptor.Analysis;
+using Scriptor.Compile;
+using Scriptor.Definition;
+using Scriptor.Reflection;
+using AST = Danmokou.Reflection.AST;
 using Diagnostic = LanguageServer.VsCode.Contracts.Diagnostic;
+using IAST = Danmokou.Reflection.IAST;
 using Range = LanguageServer.VsCode.Contracts.Range;
 
 namespace DMKLanguageServer.Services;
@@ -298,7 +298,7 @@ public class TextDocumentService : DMKLanguageServiceBase {
                 _ => true
             }).SelectNotNull(MethodSignature.MaybeGet).Where(m => m.IsStatic == isStatic);
         if (!isStatic)
-            sigs = sigs.Concat(Reflector.ReflectionData.ExtensionMethods(instTyp, name));
+            sigs = sigs.Concat(GlobalScope.Singleton.ExtensionMethods(instTyp, name));
         return sigs;
     }
     private IEnumerable<CompletionItem> CompletionsForInstance(Type instTyp, bool isStatic) {
@@ -320,7 +320,8 @@ public class TextDocumentService : DMKLanguageServiceBase {
                 if (IsInRange(ast)) {
                     if (ast is AST.BaseMethodInvoke { BaseMethod.Mi.IsFallthrough: false, Parenthesized: true, Params.Length: > 1 } bmi) {
                         foreach (var (i, c) in bmi.Params.Enumerate()) {
-                            if (bmi.BaseMethod.Params[i].BDSL1ImplicitSMList || bmi.BaseMethod.Params[i].NonExplicit)
+                            var ft = bmi.BaseMethod.Mi.FeaturesAt(i);
+                            if (ft?.BDSL1ImplicitSMList is true || ft?.NonExplicit is true)
                                 continue;
                             //This filters out macro cases
                             if (c.Position.Start.Index <= ast.Position.Start.Index || c.Position.End.Index >= ast.Position.End.Index)
@@ -369,7 +370,7 @@ public class TextDocumentService : DMKLanguageServiceBase {
         "System.Diagnostics", "System.Security", "System.Resources", "Unity.Profiling",
     };
     private CompletionItem[] BDSL2TypeCompletions =
-        R2.Parser.TypeDef.GenericToType.Values.SelectMany(x => x.Where(kv => {
+        LangParser.TypeDef.GenericToType.Values.SelectMany(x => x.Where(kv => {
                     var (name, typ) = kv;
                     if (doShowTypes.Contains(typ)) return true;
                     if (CSharpTypePrinter.SimpleTypeNameMap.ContainsKey(typ)) return false;
@@ -396,8 +397,8 @@ public class TextDocumentService : DMKLanguageServiceBase {
                 }))
             .ToArray();
 
-    private IEnumerable<CompletionItem> GetCompletions2(TypeDesignation rtd, R2.LexicalScope scope, R2.ScriptImport? asImport, bool prependImportScope) {
-        var vars = new Dictionary<(string, Type?), R2.VarDecl>();
+    private IEnumerable<CompletionItem> GetCompletions2(TypeDesignation rtd, LexicalScope scope, ScriptImport? asImport, bool prependImportScope) {
+        var vars = new Dictionary<(string, Type?), VarDecl>();
         foreach (var v in scope.AllVisibleVars) {
             vars.TryAdd((v.Name, v.FinalizedType), v);
         }
@@ -440,7 +441,7 @@ public class TextDocumentService : DMKLanguageServiceBase {
                     (kt == typeof(ReflectableLASM) || kt == typeof(TaskPattern) || kt == typeof(TTaskPattern))) {
                     return true;
                 }
-                return R2.DMKScope.TryFindConversion(rtd, mi.SharedType.Last) is not null;
+                return DMKScope.Singleton.TryFindConversion(rtd, mi.SharedType.Last) is not null;
             })
             .SelectMany(mi => mi.Member.BaseMi.GetCustomAttributes<AliasAttribute>()
                 .Select(alias => AsItem(alias.alias, mi)).Prepend(AsItem(null, mi)))
@@ -475,7 +476,7 @@ public class TextDocumentService : DMKLanguageServiceBase {
     }
 
     private static IEnumerable<char> MethodCommitters = new[] { '(' };
-    private CompletionItem? AsItem(R2.VarDecl decl) =>
+    private CompletionItem? AsItem(VarDecl decl) =>
         decl.Name.StartsWith("$") ? null :
         new(decl.Name, CompletionItemKind.Variable, decl.AsParam, decl.DocComment ?? (
             decl.SourceImplicit == null ? "User-defined variable": "Function parameter")) {
@@ -488,13 +489,13 @@ public class TextDocumentService : DMKLanguageServiceBase {
                 InsertText = name
             };
     
-    private CompletionItem AsItem(R2.ScriptFnDecl decl) =>
+    private CompletionItem AsItem(ScriptFnDecl decl) =>
         new(decl.Name, CompletionItemKind.Function, decl.AsSignature(), decl.DocComment ?? "User-defined function") {
             InsertText = decl.Name,
             CommitCharacters = MethodCommitters
         };
     
-    private CompletionItem AsItem(R2.ScriptImport decl) =>
+    private CompletionItem AsItem(ScriptImport decl) =>
         new(decl.ImportAs ?? decl.FileKey, CompletionItemKind.Function, 
             $"Script {decl.FileKey}" + (decl.ImportAs is null ? "" : $" (as {decl.ImportAs})"), 
             decl.DocComment ?? (
@@ -503,7 +504,7 @@ public class TextDocumentService : DMKLanguageServiceBase {
         };
 
 
-    private static CompletionItemKind MethCompletion(MethodSignature sig) => sig.Member.Symbol switch {
+    private static CompletionItemKind MethCompletion(MethodSignature sig) => sig.Member.Symbol() switch {
         SymbolKind.Enum => CompletionItemKind.Enum,
         SymbolKind.Property => CompletionItemKind.Property,
         SymbolKind.Field => CompletionItemKind.Field,
